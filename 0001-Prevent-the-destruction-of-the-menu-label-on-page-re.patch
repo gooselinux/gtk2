@@ -1,0 +1,45 @@
+From b70e5bb953f3abeee82f439133453fa007db3d6a Mon Sep 17 00:00:00 2001
+From: Sjoerd Simons <sjoerd.simons@collabora.co.uk>
+Date: Mon, 22 Mar 2010 14:11:05 -0400
+Subject: [PATCH 1/2] Prevent the destruction of the menu label on page removal
+
+In certain cases the menu label of a notebook page will be reused after the
+page was removed from the notebook, for instance when a page is dragged from
+one notebook to another. For such cases make sure that the menu label isn't
+destroyed as part of destroying the menu item it was in.
+---
+ gtk/gtknotebook.c |   11 +++++++----
+ 1 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/gtk/gtknotebook.c b/gtk/gtknotebook.c
+index 2c6a507..3bda769 100644
+--- a/gtk/gtknotebook.c
++++ b/gtk/gtknotebook.c
+@@ -4385,17 +4385,20 @@ gtk_notebook_real_remove (GtkNotebook *notebook,
+       if (destroying)
+         gtk_widget_destroy (tab_label);
+       g_object_unref (tab_label);
+-    } 
++    }
+ 
+   if (notebook->menu)
+     {
+-      gtk_container_remove (GTK_CONTAINER (notebook->menu), 
+-			    page->menu_label->parent);
++      GtkWidget *parent = page->menu_label->parent;
++
++      gtk_notebook_menu_label_unparent (parent, NULL);
++      gtk_container_remove (GTK_CONTAINER (notebook->menu), parent);
++
+       gtk_widget_queue_resize (notebook->menu);
+     }
+   if (!page->default_menu)
+     g_object_unref (page->menu_label);
+-  
++
+   g_list_free (list);
+ 
+   if (page->last_focus_child)
+-- 
+1.7.0.1
+

@@ -1,0 +1,30 @@
+From 1f990825bbd9ee02026f2c27900f2c17451333bf Mon Sep 17 00:00:00 2001
+From: Matthias Clasen <mclasen@redhat.com>
+Date: Tue, 6 Apr 2010 20:30:39 -0400
+Subject: [PATCH 2/2] Yet another fix for shape handling
+
+This should fix problems with awn and notify-osd.
+(cherry picked from commit 0efb24f589a74c4a4e78a1803d6e7205be9c1984)
+---
+ gdk/x11/gdkwindow-x11.c |    5 +----
+ 1 files changed, 1 insertions(+), 4 deletions(-)
+
+diff --git a/gdk/x11/gdkwindow-x11.c b/gdk/x11/gdkwindow-x11.c
+index 58ff6a3..06f7384 100644
+--- a/gdk/x11/gdkwindow-x11.c
++++ b/gdk/x11/gdkwindow-x11.c
+@@ -4612,10 +4612,7 @@ _xwindow_get_shape (Display *xdisplay,
+ 			     window,
+ 			     shape_type, &rn, &ord);
+ 
+-  if (xrl == NULL)
+-    return NULL; /* XShape not supported */
+-
+-  if (rn == 0)
++  if (xrl == NULL || rn == 0)
+     return gdk_region_new (); /* Empty */
+ 
+   if (ord != YXBanded)
+-- 
+1.7.0.1
+

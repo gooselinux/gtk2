@@ -1,0 +1,12 @@
+diff -up gtk+-2.18.4/po/nn.po.strftime-format gtk+-2.18.4/po/nn.po
+--- gtk+-2.18.4/po/nn.po.strftime-format	2009-12-01 17:10:57.815372584 -0500
++++ gtk+-2.18.4/po/nn.po	2009-12-01 17:11:06.121006612 -0500
+@@ -1967,7 +1967,7 @@ msgstr "Ukjent"
+ #
+ #: gtk/gtkfilechooserdefault.c:11495
+ msgid "%H:%M"
+-msgstr "H:%M"
++msgstr "%H:%M"
+ 
+ #
+ #: gtk/gtkfilechooserdefault.c:11497

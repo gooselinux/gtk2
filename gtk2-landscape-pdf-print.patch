@@ -1,0 +1,186 @@
+--- gtk+-2.18.3/gtk/gtkprintcontext.c	2009-10-09 07:00:44.000000000 +0200
++++ gtk+-2.18.3/gtk/gtkprintcontext.c	2009-11-05 11:57:31.000000000 +0100
+@@ -155,7 +155,6 @@ gtk_print_context_set_cairo_context (Gtk
+ 	       context->pixels_per_unit_y);
+ }
+ 
+-
+ void
+ _gtk_print_context_rotate_according_to_orientation (GtkPrintContext *context)
+ {
+@@ -204,6 +203,36 @@ _gtk_print_context_rotate_according_to_o
+ }
+ 
+ void
++_gtk_print_context_reverse_according_to_orientation (GtkPrintContext *context)
++{
++  cairo_t *cr = context->cr;
++  cairo_matrix_t matrix;
++  gdouble width, height;
++
++  width = gtk_page_setup_get_paper_width (context->page_setup, GTK_UNIT_INCH);
++  width = width * context->surface_dpi_x / context->pixels_per_unit_x;
++  height = gtk_page_setup_get_paper_height (context->page_setup, GTK_UNIT_INCH);
++  height = height * context->surface_dpi_y / context->pixels_per_unit_y;
++
++  switch (gtk_page_setup_get_orientation (context->page_setup))
++    {
++    default:
++    case GTK_PAGE_ORIENTATION_PORTRAIT:
++    case GTK_PAGE_ORIENTATION_LANDSCAPE:
++      break;
++    case GTK_PAGE_ORIENTATION_REVERSE_PORTRAIT:
++    case GTK_PAGE_ORIENTATION_REVERSE_LANDSCAPE:
++      cairo_translate (cr, width, height);
++      cairo_matrix_init (&matrix,
++			 -1,  0,
++			  0, -1,
++			  0,  0);
++      cairo_transform (cr, &matrix);
++      break;
++    }
++}
++
++void
+ _gtk_print_context_translate_into_margin (GtkPrintContext *context)
+ {
+   GtkPrintOperationPrivate *priv;
+--- gtk+-2.18.3/gtk/gtkprintoperation.c	2009-11-05 12:02:52.000000000 +0100
++++ gtk+-2.18.3/gtk/gtkprintoperation.c	2009-11-05 12:01:40.000000000 +0100
+@@ -1960,14 +1960,11 @@ pdf_start_page (GtkPrintOperation *op,
+ 		GtkPrintContext   *print_context,
+ 		GtkPageSetup      *page_setup)
+ {
+-  GtkPaperSize *paper_size;
+   cairo_surface_t *surface = op->priv->platform_data;
+   gdouble w, h;
+ 
+-  paper_size = gtk_page_setup_get_paper_size (page_setup);
+-
+-  w = gtk_paper_size_get_width (paper_size, GTK_UNIT_POINTS);
+-  h = gtk_paper_size_get_height (paper_size, GTK_UNIT_POINTS);
++  w = gtk_page_setup_get_paper_width (page_setup, GTK_UNIT_POINTS);
++  h = gtk_page_setup_get_paper_height (page_setup, GTK_UNIT_POINTS);
+   
+   cairo_pdf_surface_set_size (surface, w, h);
+ }
+@@ -2056,7 +2053,7 @@ run_pdf (GtkPrintOperation  *op,
+   priv->manual_reverse = FALSE;
+   priv->manual_page_set = GTK_PAGE_SET_ALL;
+   priv->manual_scale = 1.0;
+-  priv->manual_orientation = TRUE;
++  priv->manual_orientation = FALSE;
+   priv->manual_number_up = 1;
+   priv->manual_number_up_layout = GTK_NUMBER_UP_LAYOUT_LEFT_TO_RIGHT_TOP_TO_BOTTOM;
+   
+@@ -2400,6 +2397,8 @@ common_render_page (GtkPrintOperation *o
+   
+   if (priv->manual_orientation)
+     _gtk_print_context_rotate_according_to_orientation (print_context);
++  else
++    _gtk_print_context_reverse_according_to_orientation (print_context);
+ 
+   if (priv->manual_number_up > 1)
+     {
+@@ -2934,7 +2933,7 @@ print_pages (GtkPrintOperation       *op
+       priv->manual_reverse = gtk_print_settings_get_reverse (priv->print_settings);
+       priv->manual_page_set = gtk_print_settings_get_page_set (priv->print_settings);
+       priv->manual_scale = gtk_print_settings_get_scale (priv->print_settings) / 100.0;
+-      priv->manual_orientation = TRUE;
++      priv->manual_orientation = FALSE;
+       priv->manual_number_up = gtk_print_settings_get_number_up (priv->print_settings);
+       priv->manual_number_up_layout = gtk_print_settings_get_number_up_layout (priv->print_settings);
+     }
+--- gtk+-2.18.3/gtk/gtkprintoperation-private.h	2009-10-09 07:00:44.000000000 +0200
++++ gtk+-2.18.3/gtk/gtkprintoperation-private.h	2009-11-05 11:58:07.000000000 +0100
+@@ -135,11 +135,12 @@ void _gtk_print_operation_set_status (Gt
+ 
+ /* GtkPrintContext private functions: */
+ 
+-GtkPrintContext *_gtk_print_context_new                             (GtkPrintOperation *op);
+-void             _gtk_print_context_set_page_setup                  (GtkPrintContext   *context,
+-								     GtkPageSetup      *page_setup);
+-void             _gtk_print_context_translate_into_margin           (GtkPrintContext   *context);
+-void             _gtk_print_context_rotate_according_to_orientation (GtkPrintContext   *context);
++GtkPrintContext *_gtk_print_context_new                              (GtkPrintOperation *op);
++void             _gtk_print_context_set_page_setup                   (GtkPrintContext   *context,
++								      GtkPageSetup      *page_setup);
++void             _gtk_print_context_translate_into_margin            (GtkPrintContext   *context);
++void             _gtk_print_context_rotate_according_to_orientation  (GtkPrintContext   *context);
++void             _gtk_print_context_reverse_according_to_orientation (GtkPrintContext *context);
+ 
+ G_END_DECLS
+ 
+--- gtk+-2.18.3/gtk/gtkprintoperation-unix.c	2009-11-05 12:02:52.000000000 +0100
++++ gtk+-2.18.3/gtk/gtkprintoperation-unix.c	2009-11-05 12:00:08.000000000 +0100
+@@ -109,6 +109,8 @@ unix_start_page (GtkPrintOperation *op,
+          }
+       else if (type == CAIRO_SURFACE_TYPE_PDF)
+         {
++          w = gtk_page_setup_get_paper_width (page_setup, GTK_UNIT_POINTS);
++          h = gtk_page_setup_get_paper_height (page_setup, GTK_UNIT_POINTS);
+           cairo_pdf_surface_set_size (op_unix->surface, w, h);
+         }
+     }
+@@ -771,7 +773,6 @@ _gtk_print_operation_platform_backend_cr
+ {
+   gchar *filename;
+   gint fd;
+-  GtkPaperSize *paper_size;
+   gdouble w, h;
+   cairo_surface_t *surface;
+   static cairo_user_data_key_t key;
+@@ -787,9 +788,8 @@ _gtk_print_operation_platform_backend_cr
+ 
+   *target = filename;
+   
+-  paper_size = gtk_page_setup_get_paper_size (page_setup);
+-  w = gtk_paper_size_get_width (paper_size, GTK_UNIT_POINTS);
+-  h = gtk_paper_size_get_height (paper_size, GTK_UNIT_POINTS);
++  w = gtk_page_setup_get_paper_width (page_setup, GTK_UNIT_POINTS);
++  h = gtk_page_setup_get_paper_height (page_setup, GTK_UNIT_POINTS);
+     
+   *dpi_x = *dpi_y = 72;
+   surface = cairo_pdf_surface_create_for_stream (write_preview, GINT_TO_POINTER (fd), w, h);
+@@ -822,9 +822,8 @@ _gtk_print_operation_platform_backend_re
+   GtkPaperSize *paper_size;
+   gdouble w, h;
+   
+-  paper_size = gtk_page_setup_get_paper_size (page_setup);
+-  w = gtk_paper_size_get_width (paper_size, GTK_UNIT_POINTS);
+-  h = gtk_paper_size_get_height (paper_size, GTK_UNIT_POINTS);
++  w = gtk_page_setup_get_paper_width (page_setup, GTK_UNIT_POINTS);
++  h = gtk_page_setup_get_paper_height (page_setup, GTK_UNIT_POINTS);
+   cairo_pdf_surface_set_size (surface, w, h);
+ }
+ 
+--- gtk+-2.18.3/modules/printbackends/file/gtkprintbackendfile.c	2009-10-09 07:00:45.000000000 +0200
++++ gtk+-2.18.3/modules/printbackends/file/gtkprintbackendfile.c	2009-11-05 12:02:32.000000000 +0100
+@@ -698,6 +698,7 @@ file_printer_prepare_for_print (GtkPrint
+ 				GtkPageSetup     *page_setup)
+ {
+   gdouble scale;
++  OutputFormat format;
+ 
+   print_job->print_pages = gtk_print_settings_get_print_pages (settings);
+   print_job->page_ranges = NULL;
+@@ -719,7 +720,18 @@ file_printer_prepare_for_print (GtkPrint
+     print_job->scale = scale/100.0;
+ 
+   print_job->page_set = gtk_print_settings_get_page_set (settings);
+-  print_job->rotate_to_orientation = TRUE;
++
++  format = format_from_settings (settings);
++  switch (format)
++    {
++      case FORMAT_PDF:
++        print_job->rotate_to_orientation = FALSE;
++        break;
++      case FORMAT_PS:
++      case FORMAT_SVG:
++        print_job->rotate_to_orientation = TRUE;
++        break;
++    }
+ }
+ 
+ static GList *

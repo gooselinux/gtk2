@@ -1,0 +1,11 @@
+--- gtk+-2.18.3/gtk/gtkwindow.c	2009-10-09 01:00:44.000000000 -0400
++++ hacked/gtk/gtkwindow.c	2009-10-28 11:45:33.583105288 -0400
+@@ -2414,7 +2414,7 @@
+   GtkWindowPrivate *priv;
+ 
+   g_return_if_fail (GTK_IS_WINDOW (window));
+-  g_return_if_fail (!GTK_WIDGET_VISIBLE (window));
++  g_return_if_fail (!GTK_WIDGET_MAPPED (window));
+ 
+   priv = GTK_WINDOW_GET_PRIVATE (window);
+ 
