@@ -17,7 +17,7 @@
 Summary: The GIMP ToolKit (GTK+), a library for creating GUIs for X
 Name: gtk2
 Version: %{base_version}
-Release: 4%{?dist}
+Release: 4%{?dist}.goose.1
 License: LGPLv2+
 Group: System Environment/Libraries
 Source: http://download.gnome.org/sources/gtk+/2.18/gtk+-%{version}.tar.bz2
@@ -348,11 +348,11 @@ fi
 %defattr(-, root, root)
 
 %doc AUTHORS COPYING NEWS README
-%{_bindir}/gdk-pixbuf-query-loaders*
-%{_bindir}/gtk-query-immodules-2.0*
-%{_bindir}/update-gdk-pixbuf-loaders
-%{_bindir}/update-gtk-immodules
-%{_bindir}/gtk-update-icon-cache
+%attr(0755, root, root) %{_bindir}/gdk-pixbuf-query-loaders*
+%attr(0755, root, root) %{_bindir}/gtk-query-immodules-2.0*
+%attr(0755, root, root) %{_bindir}/update-gdk-pixbuf-loaders
+%attr(0755, root, root) %{_bindir}/update-gtk-immodules
+%attr(0755, root, root) %{_bindir}/gtk-update-icon-cache
 %{_libdir}/libgtk-x11-2.0.so.*
 %{_libdir}/libgdk-x11-2.0.so.*
 %{_libdir}/libgdk_pixbuf-2.0.so.*
@@ -397,8 +397,8 @@ fi
 %{_libdir}/gtk-2.0/include
 %{_includedir}/*
 %{_datadir}/aclocal/*
-%{_bindir}/gdk-pixbuf-csource
-%{_bindir}/gtk-builder-convert
+%attr(0755, root, root) %{_bindir}/gdk-pixbuf-csource
+%attr(0755, root, root) %{_bindir}/gtk-builder-convert
 %{_libdir}/pkgconfig/*
 %{_bindir}/gtk-demo
 %{_datadir}/gtk-2.0
@@ -414,6 +414,9 @@ fi
 
 
 %changelog
+* Wed Dec 28 2011 Ivan Makfinsky <makfinsky@gooseproject.org> - 2.18.9-4.gl6.goose.1
+- Explicitly set the permissions on files in the _bindir
+
 * Fri May 14 2010 Matthias Clasen <mclasen@redhat.com> - 2.18.9-4
 - Updated translations
 Resolves: #589238
